@@ -1,0 +1,3 @@
+/*
+This will optimize a BSpline trajectory using the NLOPT
+*/
