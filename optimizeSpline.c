@@ -23,20 +23,22 @@ int main()
     spline_dat.v_max = 2;
     spline_dat.a_max = 3;
     spline_dat.j_max = 11;
-    spline_dat.dist = 10;
+    spline_dat.dist = 15;
 
     int n = spline_dat.step_length + spline_dat.num_control_points; // dimensionality of the problem
 
-    unsigned int m = 27; // double check this. it is the number of constraints
+    unsigned int m = 27 + 11; // double check this. it is the number of constraints
     double tol[m];
     for (int i = 0; i < m; i++)
     {
         tol[i] = 1e-8;
     }
-
+    int dist = spline_dat.dist;
     double lb[n];      // lower boungs on the optimization params. maybe needs to be const
     double ub[n];
-    double x[19] = {3, 3, 3, 3, 3, 3, 3, 0, 0.5, 1, 1.5, 2.75, 3.75, 4.25, 5.25, 6.75, 8.5, 9, 10};
+    // COBYLA does NOT work if the initial conditions are outside of the inequality range
+    double x[19] = {1, 3, 3, 3, 3, 3, 1, 0, dist/10, 2*dist/10, 3*dist/10, 4*dist/10, 5*dist/10, 6*dist/10, 7*dist/10, 8*dist/10, 9*dist/10, dist, dist}; //0.5, 1, 1.5, 2.75, 3.75, 4.25, 5.25, 6.75, 8.5, 9, 10};
+     //{1.869, 1.734, 1.099, 1.469, 1.8544, 1.9433, 2.206, 0, 0, 0.2, 1.21, 2.48, 4.09, 5.7, 7.96, 9.74, 10, 10, 10}; //{3, 3, 3, 3, 3, 3, 3, 0, 0.5, 1, 1.5, 2.75, 3.75, 4.25, 5.25, 6.75, 8.5, 9, 10};
        // starting guess
     // TODO: Get a better initial guess
 
@@ -48,8 +50,8 @@ int main()
     }
     for (int i = spline_dat.step_length; i < spline_dat.num_control_points+spline_dat.step_length; i++)
     {
-        lb[i] = -200;   // could probably adjust this
-        ub[i] = 200; // spam upper value
+        lb[i] = 0;   // could probably adjust this
+        ub[i] = dist; // spam upper value
         //x[i] = spline_dat.dist/2;  // intial guess
     }
     x[spline_dat.step_length] = 0;  // adjust the first inital guess
@@ -86,7 +88,7 @@ int main()
     res = nlopt_set_maxeval(opt, 20000);
     printf("max eval result: %d\n", res);
 
-/*    
+ /*   
     nlopt_opt local_opt = nlopt_create(NLOPT_LD_LBFGS, n);
     nlopt_set_xtol_rel(local_opt, 1e-4);
     nlopt_set_maxeval(local_opt, 200);
@@ -206,7 +208,7 @@ void derivConstraints(unsigned m, double* result, unsigned n, const double* x, d
     {
         control_points[i] = x[i+spline_data->step_length];   // get the control points from the param aray
     }
-    /*
+    
     double knots[step_length+(2*spline_data->poly_deg)+1];
     for (int i = 0; i < spline_data->poly_deg+1; i++)
     {
@@ -231,7 +233,7 @@ void derivConstraints(unsigned m, double* result, unsigned n, const double* x, d
     for (int i = 0; i < step_length+(2*spline_data->poly_deg)-1; i++)
     {
         knots_a[i] = knots[i+2];
-    }*/
+    }
 
     int n_c = spline_data->num_control_points; //- 1;
     int d = 1;
@@ -274,8 +276,8 @@ void derivConstraints(unsigned m, double* result, unsigned n, const double* x, d
 
         d3_control[i] = (d2_control[i+1] - d2_control[i])*(spline_data->poly_deg-2)/(deltaT3);
     }*/
-
-    for (int i = 0; i < m; i++)
+    int temp = m-n_c-d;
+    for (int i = 0; i < temp; i++)
     {
         // TODO: Check the results are being indexed correctly and are correct
         if (i < n_c-d)
@@ -292,7 +294,12 @@ void derivConstraints(unsigned m, double* result, unsigned n, const double* x, d
         }   
     }
 
-/*
+    for (int i = 0; i < n_c-d; i++)
+    {
+        result[temp+i] = -d1_control[i];
+    }
+
+    // un commenting this seems ot increase the number of calls made in COBYLA
     if(grad)
     {
         int mod = 0;
@@ -472,13 +479,13 @@ void derivConstraints(unsigned m, double* result, unsigned n, const double* x, d
                 }
             }
         }
-    }*/
+    }
 }
 
 void clampConstraints(unsigned m, double* result, unsigned n, const double* x, double* grad, void* data)
 {
     c_con_count++;
-    bspline* spline_data = (bspline*) data;
+     bspline* spline_data = (bspline*) data;
 
     int step_length = spline_data->step_length; 
     double knot_steps[step_length];
@@ -493,7 +500,7 @@ void clampConstraints(unsigned m, double* result, unsigned n, const double* x, d
     {
         control_points[i] = x[i+spline_data->step_length];   // get the control points from the param aray
     }
-
+    
     double knots[step_length+(2*spline_data->poly_deg)+1];
     for (int i = 0; i < spline_data->poly_deg+1; i++)
     {
@@ -520,23 +527,32 @@ void clampConstraints(unsigned m, double* result, unsigned n, const double* x, d
         knots_a[i] = knots[i+2];
     }
 
-    // TODO: Add in the gradient of the contraint (which should be doable but using the derivatives I already need to compute)
-
-    int n_c = spline_data->num_control_points - 1;
+    int n_c = spline_data->num_control_points; //- 1;
     int d = 1;
 
- //   result[0] = x[step_length];
-  //  result[1] = x[control_length + step_length] - spline_data->dist;
-    
-    double control = controlPointDerivative(0, d, spline_data->poly_deg, n_c-d, spline_data->start_knot, knot_steps, control_points, step_length);
-    result[0] = control;
-    control = controlPointDerivative(n_c-d, d, spline_data->poly_deg, n_c-d, spline_data->start_knot, knot_steps, control_points, step_length);
-    result[1] = control;
+    double d1_control[n_c-d];
+    double d2_control[n_c-d-1];
+    double d3_control[n_c-d-2];
+    for (int i = 0; i < n_c-d; i++)
+    {
+        d1_control[i] = controlPointDerivative(i, d, spline_data->poly_deg, n_c-d, 0, knot_steps, control_points, step_length);
+    }
 
-    control = controlPointDerivative(0, d, spline_data->poly_deg-1, n_c-d-1, spline_data->start_knot, knot_steps, control_points, step_length);
-    result[2] = control;
-    control = controlPointDerivative(n_c-d-1, d, spline_data->poly_deg-1, n_c-d-1, spline_data->start_knot, knot_steps, control_points, step_length);
-    result[3] = control;
+    for (int i = 0; i < n_c-d-1; i++)
+    {
+        d2_control[i] = controlPointDerivative(i, d, spline_data->poly_deg-1, n_c-d-1, 0, knot_steps, d1_control, step_length);
+    }
+
+    for (int i = 0; i < n_c-d-2; i++)
+    {
+        d3_control[i] = controlPointDerivative(i, d, spline_data->poly_deg-2, n_c-d-2, 0, knot_steps, d2_control, step_length);
+    }
+
+    result[0] = d1_control[0];
+    result[1] = d1_control[n_c-d-1];
+
+    result[2] = d2_control[0];
+    result[3] = d2_control[9];
     /*
     double deltaT1;
 
@@ -555,7 +571,7 @@ void clampConstraints(unsigned m, double* result, unsigned n, const double* x, d
 
     deltaT1 = getdeltaT(0, spline_data->poly_deg-2, knots_a);
     result[3] = (result[1] - c2)*(spline_data->poly_deg-1)/(deltaT1);
-
+*/
     if (grad)
     {
         int mod = 0;
@@ -726,7 +742,7 @@ void clampConstraints(unsigned m, double* result, unsigned n, const double* x, d
             }
         }
     }
-*/
+
 /*
     control = controlPointDerivative(0, d, spline_data->poly_deg, n, spline_data->start_knot, knot_steps, control_points, step_length);
     result[4] = control;
