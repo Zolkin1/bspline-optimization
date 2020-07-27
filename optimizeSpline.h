@@ -9,10 +9,16 @@ typedef struct
     double a_max;
     double j_max;
     double dist;
+    double x_l[27];
 } bspline;
 
 void derivConstraints(unsigned m, double* result, unsigned n, const double* x, double* grad, void* data);
 void clampConstraints(unsigned m, double* result, unsigned n, const double* x, double* grad, void* data);
+
+double c1_constraint(unsigned n, const double* x, double * grad, void* data);
+double c2_constraint(unsigned n, const double* x, double * grad, void* data);
+double c3_constraint(unsigned n, const double* x, double * grad, void* data);
+double c4_constraint(unsigned n, const double* x, double * grad, void* data);
 
 double objectiveFunc(unsigned n, const double* x, double* grad, void* data);
 

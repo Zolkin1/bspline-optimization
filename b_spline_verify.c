@@ -121,7 +121,7 @@ int main()
     {
         d3_control[i] = controlPointDerivative(i, d, k-2, n_c-d-2, 0, knot_steps, d2_control, step_length);
         d3_dtmethod[i] = (d2_dtmethod[i+1]-d2_dtmethod[i])*(k-2)/getdeltaT(i, k-2, knots_a);
-        result[n+n_c-d-1] = (d3_control[i]*d3_control[i]) - 16;
+        result[i+n+n_c-d-1] = (d3_control[i]*d3_control[i]) - 16;
     }
 
 
@@ -154,7 +154,7 @@ int main()
                 }
                 else if(j-step_length == i+1)
                 {
-                    grad[i*opto_vars+j] = 2*d1_dtmethod[i]*k/dt;
+                    grad[i*opto_vars+j] = 2*d1_dtmethod[i+1]*k/dt;
                 }
                 else
                 {
@@ -196,7 +196,7 @@ int main()
                 }
                 else if (j-step_length == i+1)
                 {
-                    grad2[(i*opto_vars)+j] = 2*d2_dtmethod[i]*k2/dt;
+                    grad2[(i*opto_vars)+j] = 2*d2_dtmethod[i+1]*k2/dt;
                 }
                 
                 else
@@ -238,7 +238,7 @@ int main()
                 }
                 else if(j-step_length == i+1)
                 {
-                    grad3[(i*opto_vars)+j] = 2*d3_dtmethod[i]*k3/dt;
+                    grad3[(i*opto_vars)+j] = 2*d3_dtmethod[i+1]*k3/dt;
                 }
                 else
                 {
