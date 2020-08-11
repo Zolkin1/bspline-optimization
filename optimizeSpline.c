@@ -51,7 +51,7 @@ int main()
 
     for (int i = 0; i < m; i++)
     {
-        tol[i] = 1e-8;
+        tol[i] = 1e-10;
         //tol2[i] = 1e-8;
     }
 
@@ -108,11 +108,13 @@ int main()
 
     res = nlopt_add_equality_constraint(opt, c1_constraint, &spline_dat, 1e-8);
     res = nlopt_add_equality_constraint(opt, c2_constraint, &spline_dat, 1e-8);
-    //res = nlopt_add_equality_constraint(opt, c3_constraint, &spline_dat, 1e-8);   // not allowing to get to max acc for some reason
+    res = nlopt_add_equality_constraint(opt, c3_constraint, &spline_dat, 1e-8);   // not allowing to get to max acc for some reason
     res = nlopt_add_equality_constraint(opt, c4_constraint, &spline_dat, 1e-8);
 
 
-    res = nlopt_set_xtol_rel(opt, 1e-4);      // set the stopping param as a relative dx value
+    //res = nlopt_set_xtol_rel(opt, 1e-6);      // set the stopping param as a relative dx value
+    //res = nlopt_set_xtol_abs1(opt, 1e-2);
+    res = nlopt_set_ftol_abs(opt, 1e-4);
     printf("xtol result: %d\n", res);
 
     //res = nlopt_set_maxeval(opt, 10);
@@ -956,7 +958,7 @@ double c3_constraint(unsigned n, const double* x, double * grad, void* data)
             {
                 if (j <= i && j >= i-k+1)   // chect that that knot step is used
                 {
-                    grad[h*opto_vars + j] = -k*(d1_control[i+1] - d1_control[i])/(dt*dt);
+                    grad[h*opto_vars + j] = -k*(control[i+1] - control[i])/(dt*dt);//(d1_control[i+1] - d1_control[i])/(dt*dt);
                 }
                 else
                 {
@@ -982,7 +984,7 @@ double c3_constraint(unsigned n, const double* x, double * grad, void* data)
             //printf("%f ", grad[h*opto_vars + j]);
         }
     }
-    return d2_control[0];
+    return d1_control[1]; // why is this d1 instead of d2? // since d1[0] is defined to be 0 this forces d2[0] to be 0
 }
 
 double c4_constraint(unsigned n, const double* x, double * grad, void* data)
@@ -1093,5 +1095,6 @@ double c4_constraint(unsigned n, const double* x, double * grad, void* data)
             //printf("%f ", grad[h*opto_vars + j]);
         }
     }
-    return d1_control[n_c-d-2];
+    return d1_control[n_c-d-2]; // why is this d1_control and not d2_control?
+    // since d1_control[n_c-d-1] is also defined to be 0, by setting d1_control[n_c-d-2] to be 0 you force d2_control[length] to also be 0
 }
